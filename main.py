@@ -19,25 +19,27 @@ app = Flask(__name__)
 
 
 def run_main_async():
+    print("[run_main_async] Starte Hintergrund-Thread für delayed_main()!")
+
     def delayed_main():
         try:
-            print(
-                "[Webhook] Trigger received. Waiting 120 seconds before starting main script...")
-            time.sleep(120)
-            print("[Webhook] Delay finished. Starting main()...")
+            print("[delayed_main] Trigger erhalten. Warte 300 Sekunden...")
+            time.sleep(300)
+            print("[delayed_main] Delay vorbei. Starte main()...")
             main()
-            print("[Webhook] main() finished.")
+            print("[delayed_main] main() beendet.")
         except Exception as e:
-            print(f"[Webhook] ERROR in delayed_main: {e}")
-    print("[Webhook] Starte Hintergrund-Thread für delayed_main()")
+            print(f"[delayed_main] ERROR: {e}")
     thread = threading.Thread(target=delayed_main)
     thread.start()
+    print("[run_main_async] Thread wurde gestartet!")
 
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
     print("[webhook] Webhook wurde getriggert!")
     run_main_async()
+    print("[webhook] run_main_async wurde aufgerufen!")
     return jsonify({'status': 'Started processing'}), 200
 
 
@@ -289,7 +291,7 @@ def process_library_items_with_1080p_badge(items: List[Dict]):
 
 
 def main():
-    print("[main] Starte Hauptfunktion")
+    print("[main] Starte Hauptfunktion (main() wurde aufgerufen)")
     badge_file = "cam.png"
     if os.path.exists(badge_file):
         print(f"[main] ✓ Badge file found: {badge_file}")
