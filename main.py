@@ -22,13 +22,14 @@ def run_main_async():
     def delayed_main():
         try:
             print(
-                "[Webhook] Trigger received. Waiting 300 seconds before starting main script...")
-            time.sleep(300)
+                "[Webhook] Trigger received. Waiting 120 seconds before starting main script...")
+            time.sleep(120)
             print("[Webhook] Delay finished. Starting main()...")
             main()
             print("[Webhook] main() finished.")
         except Exception as e:
             print(f"[Webhook] ERROR in delayed_main: {e}")
+    print("[Webhook] Starte Hintergrund-Thread für delayed_main()")
     thread = threading.Thread(target=delayed_main)
     thread.start()
 
@@ -287,41 +288,35 @@ def process_library_items_with_1080p_badge(items: List[Dict]):
 
 
 def main():
-    """
-    Main program execution for library-specific 1080p badge processing
-    """
-
-    # Check badge file
+    print("[main] Starte Hauptfunktion")
     badge_file = "cam.png"
     if os.path.exists(badge_file):
-        print(f"✓ Badge file found: {badge_file}")
+        print(f"[main] ✓ Badge file found: {badge_file}")
     else:
-        print(f"✗ Badge file missing: {badge_file}")
-        print("Please place the 1080p.png file in the script directory.")
+        print(f"[main] ✗ Badge file missing: {badge_file}")
+        print("[main] Please place the 1080p.png file in the script directory.")
         return
 
-    print()
-
-    # Get library information and verify target library exists
-    print("Checking available libraries...")
+    print("[main] Badge-Check abgeschlossen.")
+    print("[main] Checking available libraries...")
     library_exists = get_library_info()
 
     if not library_exists:
-        print("✗ Target library not found or not accessible.")
-        print("Please check the library ID and API permissions.")
+        print("[main] ✗ Target library not found or not accessible.")
+        print("[main] Please check the library ID and API permissions.")
         return
 
-    print("\nStarting library processing...")
-    print("-" * 70)
-
-    # Fetch and process ALL items from the specific library
+    print("[main] Library gefunden. Starte Verarbeitung...")
+    print("[main] Hole alle Items aus der Library...")
     items = get_items_from_library()
     if items:
+        print(
+            f"[main] {len(items)} Items gefunden. Starte Poster-Bearbeitung...")
         process_library_items_with_1080p_badge(items)
-        print("\n✓ All done! Check your Jellyfin library for updated posters.")
+        print("[main] ✓ All done! Check your Jellyfin library for updated posters.")
     else:
-        print("✗ No items could be fetched from the library.")
-        print("Please verify the library ID and API access.")
+        print("[main] ✗ No items could be fetched from the library.")
+        print("[main] Please verify the library ID and API access.")
 
 
 if __name__ == "__main__":
