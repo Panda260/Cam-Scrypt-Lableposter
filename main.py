@@ -20,9 +20,15 @@ app = Flask(__name__)
 
 def run_main_async():
     def delayed_main():
-        print("Waiting 300 seconds before starting main script...")
-        time.sleep(300)
-        main()
+        try:
+            print(
+                "[Webhook] Trigger received. Waiting 300 seconds before starting main script...")
+            time.sleep(300)
+            print("[Webhook] Delay finished. Starting main()...")
+            main()
+            print("[Webhook] main() finished.")
+        except Exception as e:
+            print(f"[Webhook] ERROR in delayed_main: {e}")
     thread = threading.Thread(target=delayed_main)
     thread.start()
 
