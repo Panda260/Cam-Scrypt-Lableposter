@@ -24,6 +24,7 @@ def run_main_async():
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
+    time.sleep(300)
     run_main_async()
     return jsonify({'status': 'Started processing'}), 200
 
