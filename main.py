@@ -18,16 +18,17 @@ LIBRARY_ID = os.environ.get("LIBRARY_ID", "")  # Spezifische Library ID
 app = Flask(__name__)
 
 
-def run_main_async():
-    thread = threading.Thread(target=main)
-    thread.start()
-
-
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    time.sleep(300)
     run_main_async()
     return jsonify({'status': 'Started processing'}), 200
+
+
+def run_main_async():
+    thread = threading.Thread(target=main)
+    time.sleep(300)
+    print("Starting main process... in 300sec")
+    thread.start()
 
 
 def get_items_from_library() -> Optional[List[Dict]]:
