@@ -21,8 +21,15 @@ app = Flask(__name__)
 def run_main_async():
     thread = threading.Thread(target=main)
     print("Starting main process... in 300sec")
-    # time.sleep(300)
     thread.start()
+
+    def run_main_async():
+        def delayed_main():
+            print("Waiting 300 seconds before starting main script...")
+            time.sleep(300)
+            main()
+        thread = threading.Thread(target=delayed_main)
+        thread.start()
 
 
 @app.route('/webhook', methods=['POST'])
