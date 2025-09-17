@@ -1,3 +1,5 @@
+import threading
+from flask import Flask, request, jsonify
 import requests
 import base64
 import io
@@ -5,9 +7,25 @@ import os
 from typing import Optional, List, Dict
 from PIL import Image
 
+# Werte aus ENV holen (Docker)
 JELLYFIN_URL = os.environ.get("JELLYFIN_URL", "")
 API_KEY = os.environ.get("API_KEY", "")
 LIBRARY_ID = os.environ.get("LIBRARY_ID", "")  # Spezifische Library ID
+
+# Webhook-Server
+
+app = Flask(__name__)
+
+
+def run_main_async():
+    thread = threading.Thread(target=main)
+    thread.start()
+
+
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    run_main_async()
+    return jsonify({'status': 'Started processing'}), 200
 
 
 def get_items_from_library() -> Optional[List[Dict]]:
@@ -296,4 +314,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    port = int(os.environ.get("WEBHOOK_PORT", "5000"))
+    print(f"Starting webhook server on port {port}")
+    app.run(host="0.0.0.0", port=port, threaded=True)
