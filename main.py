@@ -36,6 +36,7 @@ def run_main_async():
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
+    print("[webhook] Webhook wurde getriggert!")
     run_main_async()
     return jsonify({'status': 'Started processing'}), 200
 
@@ -320,6 +321,7 @@ def main():
 
 
 if __name__ == "__main__":
+    print("[startup] Script gestartet und wartet auf Webhook-Trigger.")
     port = int(os.environ.get("WEBHOOK_PORT", "5000"))
     print(f"Starting webhook server on port {port}")
     app.run(host="0.0.0.0", port=port, threaded=True)
