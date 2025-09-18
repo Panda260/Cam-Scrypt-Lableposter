@@ -15,6 +15,11 @@ LIBRARY_ID = os.environ.get("LIBRARY_ID", "")  # Spezifische Library ID
 
 # Webhook-Server
 
+print(f"[startup] JELLYFIN_URL: {JELLYFIN_URL}")
+print(f"[startup] LIBRARY_ID: {LIBRARY_ID}")
+
+colsole.log("Loadet")
+
 app = Flask(__name__)
 
 
