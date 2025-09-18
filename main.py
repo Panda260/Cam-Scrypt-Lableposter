@@ -22,20 +22,21 @@ app = Flask(__name__)
 
 
 def run_main_async():
-    print("[run_main_async] Starte Hintergrund-Thread für delayed_main()!")
+    print("[run_main_async] Webhook-Trigger empfangen. Starte Delay-Thread...")
 
     def delayed_main():
+        print("[delayed_main] Starte 120 Sekunden Delay...")
+        time.sleep(120)
+        print("[delayed_main] Delay vorbei. Starte main()...")
         try:
-            print("[delayed_main] Trigger erhalten. Warte 300 Sekunden...")
-            time.sleep(300)
-            print("[delayed_main] Delay vorbei. Starte main()...")
             main()
-            print("[delayed_main] main() beendet.")
+            print("[delayed_main] main() erfolgreich beendet.")
         except Exception as e:
-            print(f"[delayed_main] ERROR: {e}")
+            print(f"[delayed_main] Fehler in main(): {e}")
     thread = threading.Thread(target=delayed_main)
+    thread.daemon = True
     thread.start()
-    print("[run_main_async] Thread wurde gestartet!")
+    print("[run_main_async] Delay-Thread wurde gestartet!")
 
 
 @app.route('/webhook', methods=['POST'])
