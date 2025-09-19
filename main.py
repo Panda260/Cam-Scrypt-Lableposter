@@ -1,65 +1,39 @@
-import threading
-from flask import Flask, request, jsonify
+
 import requests
 import base64
 import io
 import os
 import time
+import threading
 from typing import Optional, List, Dict
 from PIL import Image
+from flask import Flask, request, jsonify
+
+app = Flask(__name__)
 
 # Werte aus ENV holen (Docker)
 JELLYFIN_URL = os.environ.get("JELLYFIN_URL", "")
 API_KEY = os.environ.get("API_KEY", "")
-LIBRARY_ID = os.environ.get("LIBRARY_ID", "")  # Spezifische Library ID
+LIBRARY_ID = os.environ.get("LIBRARY_ID", "")
 
-# Webhook-Server
 
 print(f"[startup] JELLYFIN_URL: {JELLYFIN_URL}")
 print(f"[startup] LIBRARY_ID: {LIBRARY_ID}")
 
-app = Flask(__name__)
-
-
-def run_main_async():
-    print("[run_main_async] Webhook-Trigger empfangen. Starte Delay-Thread...")
-
-    def delayed_main():
-        print("[delayed_main] Starte 120 Sekunden Delay...")
-        time.sleep(120)
-        print("[delayed_main] Delay vorbei. Starte main()...")
-        try:
-            main()
-            print("[delayed_main] main() erfolgreich beendet.")
-        except Exception as e:
-            print(f"[delayed_main] Fehler in main(): {e}")
-    thread = threading.Thread(target=delayed_main)
-    thread.daemon = True
-    thread.start()
-    print("[run_main_async] Delay-Thread wurde gestartet!")
-
-
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    print("[webhook] Webhook wurde getriggert!")
-    run_main_async()
-    print("[webhook] run_main_async wurde aufgerufen!")
-    return jsonify({'status': 'Started processing'}), 200
-
 
 def get_items_from_library() -> Optional[List[Dict]]:
     """
-    Fetch ALL items from specific Jellyfin library (korrigierte Version)
+    Fetch ALL items from specific Jellyfin library (corrected version)
     """
     headers = {'X-Emby-Token': API_KEY}
     url = f'{JELLYFIN_URL}/Items'
 
-    # Korrigierte Parameter basierend auf getIDs.py
+    # Corrected parameters based on getIDs.py
     params = {
-        'ParentId': LIBRARY_ID,  # Library ID als ParentId Parameter!
+        'ParentId': LIBRARY_ID,  # Library ID as ParentId parameter!
         'Recursive': 'true',
-        'IncludeItemTypes': 'Movie,Series,Season,Episode,BoxSet',  # Alle Item-Typen
-        'Fields': 'Name,Id,Type',  # Minimal benötigte Felder
+        'IncludeItemTypes': 'Movie,Series,Season,Episode,BoxSet',  # All item types
+        'Fields': 'Name,Id,Type',  # Minimal required fields
         'IsMissing': 'False',
         'SortBy': 'SortName',
         'SortOrder': 'Ascending'
@@ -83,8 +57,7 @@ def get_library_info() -> bool:
     Get information about all libraries to verify our target library exists
     """
     headers = {'X-Emby-Token': API_KEY}
-    # Korrekte URL für Libraries
-    url = f'{JELLYFIN_URL}/Library/VirtualFolders'
+    url = f'{JELLYFIN_URL}/Library/VirtualFolders'  # Correct URL for libraries
 
     try:
         response = requests.get(url, headers=headers, timeout=30)
@@ -93,8 +66,8 @@ def get_library_info() -> bool:
 
         print("Available Libraries:")
         print("-" * 50)
-
         target_found = False
+
         for library in libraries:
             lib_id = library.get('ItemId', 'Unknown')
             lib_name = library.get('Name', 'Unknown')
@@ -107,7 +80,6 @@ def get_library_info() -> bool:
             if lib_id == LIBRARY_ID:
                 print("★ TARGET LIBRARY FOUND ★")
                 target_found = True
-
             print("-" * 30)
 
         if not target_found:
@@ -116,7 +88,6 @@ def get_library_info() -> bool:
             print("Please check the library ID.")
 
         return target_found
-
     except requests.RequestException as e:
         print(f"Error getting library info: {e}")
         return False
@@ -134,7 +105,7 @@ def download_item_image(item_id: str, image_type: str = "Primary") -> Optional[b
         response.raise_for_status()
         return response.content
     except requests.RequestException as e:
-        print(f"   ✗ Error downloading image for {item_id}: {e}")
+        print(f" ✗ Error downloading image for {item_id}: {e}")
         return None
 
 
@@ -147,6 +118,7 @@ def upload_image_to_jellyfin(item_id: str, image_data: bytes, image_type: str = 
         'Content-Type': 'image/jpeg',
         'Connection': 'keep-alive'
     }
+
     url = f'{JELLYFIN_URL}/Items/{item_id}/Images/{image_type}/0'
 
     try:
@@ -157,30 +129,28 @@ def upload_image_to_jellyfin(item_id: str, image_data: bytes, image_type: str = 
         if response.status_code == 204:
             return True
         else:
-            print(
-                f"   ✗ Upload error: {response.status_code} - {response.text}")
+            print(f" ✗ Upload error: {response.status_code} - {response.text}")
             return False
-
     except Exception as e:
-        print(f"   ✗ Error uploading to Jellyfin: {e}")
+        print(f" ✗ Error uploading to Jellyfin: {e}")
         return False
 
 
 def add_badge(poster_data: bytes) -> Optional[bytes]:
     """
-    Add 1080p badge to poster in memory (no file storage)
+    Add cam badge to poster in memory (no file storage)
     """
     try:
         poster = Image.open(io.BytesIO(poster_data))
         badge_file = "cam.png"
 
         if not os.path.exists(badge_file):
-            print(f"   ✗ Badge file not found: {badge_file}")
+            print(f" ✗ Badge file not found: {badge_file}")
             return None
 
         badge = Image.open(badge_file)
 
-        # Resize badge (15% of poster width)
+        # Resize badge (100% of poster width)
         poster_width, poster_height = poster.size
         badge_width = int(poster_width * 1)  # 100% of poster width
         badge_height = int(badge.size[1] * (badge_width / badge.size[0]))
@@ -199,17 +169,16 @@ def add_badge(poster_data: bytes) -> Optional[bytes]:
         # Convert back to bytes
         output_buffer = io.BytesIO()
         poster.save(output_buffer, format='JPEG', quality=95)
-
         return output_buffer.getvalue()
 
     except Exception as e:
-        print(f"   ✗ Error adding badge: {e}")
+        print(f" ✗ Error adding badge: {e}")
         return None
 
 
-def process_library_items_with_1080p_badge(items: List[Dict]):
+def process_library_items_with_badge(items: List[Dict]):
     """
-    Process ALL items in library and add 1080p badge
+    Process ALL items in library and add cam badge
     """
     if not items:
         print("No items found in library.")
@@ -238,26 +207,23 @@ def process_library_items_with_1080p_badge(items: List[Dict]):
         item_type = item.get('Type', 'Unknown')
 
         print(f"{i}/{len(poster_items)}: {name} ({item_type})")
-        print(f"   ID: {item_id}")
+        print(f" ID: {item_id}")
 
         # Download current image
         image_data = download_item_image(item_id)
-
         if image_data:
-            # Add 1080p badge in memory
+            # Add cam badge in memory
             badge_image_data = add_badge(image_data)
-
             if badge_image_data:
                 badge_added_count += 1
-                print(f"   ✓ badge added")
+                print(f" ✓ badge added")
 
                 # Upload badge image back to Jellyfin
                 upload_success = upload_image_to_jellyfin(
                     item_id, badge_image_data)
-
                 if upload_success:
                     uploaded_count += 1
-                    print(f"   ✓ Uploaded to Jellyfin successfully")
+                    print(f" ✓ Uploaded to Jellyfin successfully")
                 else:
                     error_count += 1
             else:
@@ -265,7 +231,7 @@ def process_library_items_with_1080p_badge(items: List[Dict]):
 
             processed_count += 1
         else:
-            print(f"   ✗ Failed to download image")
+            print(f" ✗ Failed to download image")
             error_count += 1
 
         # Progress indicator every 10 items
@@ -295,39 +261,97 @@ def process_library_items_with_1080p_badge(items: List[Dict]):
 
 
 def main():
-    print("[main] Starte Hauptfunktion (main() wurde aufgerufen)")
+    """
+    Main program execution for library-specific cam badge processing
+    """
+    # Check badge file
     badge_file = "cam.png"
     if os.path.exists(badge_file):
-        print(f"[main] ✓ Badge file found: {badge_file}")
+        print(f"✓ Badge file found: {badge_file}")
     else:
-        print(f"[main] ✗ Badge file missing: {badge_file}")
-        print("[main] Please place the 1080p.png file in the script directory.")
+        print(f"✗ Badge file missing: {badge_file}")
+        print("Please place the cam.png file in the script directory.")
         return
 
-    print("[main] Badge-Check abgeschlossen.")
-    print("[main] Checking available libraries...")
+    print()
+
+    # Get library information and verify target library exists
+    print("Checking available libraries...")
     library_exists = get_library_info()
-
     if not library_exists:
-        print("[main] ✗ Target library not found or not accessible.")
-        print("[main] Please check the library ID and API permissions.")
+        print("✗ Target library not found or not accessible.")
+        print("Please check the library ID and API permissions.")
         return
 
-    print("[main] Library gefunden. Starte Verarbeitung...")
-    print("[main] Hole alle Items aus der Library...")
+    print("\nStarting library processing...")
+    print("-" * 70)
+
+    # Fetch and process ALL items from the specific library
     items = get_items_from_library()
     if items:
-        print(
-            f"[main] {len(items)} Items gefunden. Starte Poster-Bearbeitung...")
-        process_library_items_with_1080p_badge(items)
-        print("[main] ✓ All done! Check your Jellyfin library for updated posters.")
+        process_library_items_with_badge(items)
+        print("\n✓ All done! Check your Jellyfin library for updated posters.")
     else:
-        print("[main] ✗ No items could be fetched from the library.")
-        print("[main] Please verify the library ID and API access.")
+        print("✗ No items could be fetched from the library.")
+        print("Please verify the library ID and API access.")
+
+
+def countdown_and_execute():
+    """
+    Start countdown timer and execute main() after 300 seconds
+    """
+    print("\n🕐 Timer started: 300 seconds countdown")
+    print("=" * 50)
+
+    for remaining in range(300, 0, -1):
+        mins = remaining // 60
+        secs = remaining % 60
+        print(f"\r⏳ Time remaining: {mins:02d}:{secs:02d}", end="", flush=True)
+        time.sleep(1)
+
+    print("\n\n🚀 Timer expired! Starting main execution...")
+    print("=" * 50)
+    main()
+
+
+@app.route('/webhook', methods=['POST'])
+def webhook_endpoint():
+    """
+    Webhook endpoint that responds with 200 and starts the timer
+    """
+    try:
+        # Log the webhook call
+        print("\n📨 Webhook received!")
+
+        # Start countdown timer in background thread
+        timer_thread = threading.Thread(target=countdown_and_execute)
+        timer_thread.daemon = True  # Thread will die when main program exits
+        timer_thread.start()
+
+        print("✅ Webhook processed successfully - timer started!")
+
+        # Return 200 response immediately
+        return jsonify({
+            "status": "success",
+            "message": "Webhook received, timer started (300 seconds)",
+            "timestamp": time.time()
+        }), 200
+
+    except Exception as e:
+        print(f"❌ Error processing webhook: {e}")
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
 
 
 if __name__ == "__main__":
-    print("[startup] Script gestartet und wartet auf Webhook-Trigger.")
-    port = int(os.environ.get("WEBHOOK_PORT", "5000"))
-    print(f"Starting webhook server on port {port}")
-    app.run(host="0.0.0.0", port=port, threaded=True)
+    print("🌐 Starting webhook server for cam badge processing...")
+    print("=" * 60)
+    print("📍 Webhook endpoint: http://localhost:5000/webhook")
+    print("📍 Status endpoint: http://localhost:5000/status")
+    print("=" * 60)
+    print("\n⚡ Server ready! Waiting for webhook calls...")
+
+    # Start Flask app
+    app.run(host='0.0.0.0', port=5000, debug=False)
