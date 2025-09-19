@@ -344,6 +344,8 @@ def webhook_endpoint():
             "message": str(e)
         }), 500
 
+    port = int(os.environ.get("WEBHOOK_PORT", "5000"))
+
 
 if __name__ == "__main__":
     print("🌐 Starting webhook server for cam badge processing...")
@@ -352,8 +354,6 @@ if __name__ == "__main__":
     print(f"📍 Status endpoint: http://localhost:{port}/status")
     print("=" * 60)
     print("\n⚡ Server ready! Waiting for webhook calls...")
-
-    port = int(os.environ.get("WEBHOOK_PORT", "5000"))
 
     # Start Flask app
     app.run(host='0.0.0.0', port=port, debug=False)
