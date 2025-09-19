@@ -348,6 +348,7 @@ def webhook_endpoint():
 
 
 if __name__ == "__main__":
+    port = int(os.environ.get("WEBHOOK_PORT", "5000"))
     print("🌐 Starting webhook server for cam badge processing...")
     print("=" * 60)
     print(f"📍 Webhook endpoint: http://localhost:{port}/webhook")
