@@ -303,14 +303,7 @@ def countdown_and_execute():
     print("\n🕐 Timer started: 300 seconds countdown")
     print("=" * 50)
 
-    for remaining in range(300, 0, -1):
-        mins = remaining // 60
-        secs = remaining % 60
-        print(f"\r⏳ Time remaining: {mins:02d}:{secs:02d}", end="", flush=True)
-        time.sleep(1)
-
-    print("\n\n🚀 Timer expired! Starting main execution...")
-    print("=" * 50)
+    time.sleep(5)
     main()
 
 
