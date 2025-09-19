@@ -296,17 +296,6 @@ def main():
         print("Please verify the library ID and API access.")
 
 
-def countdown_and_execute():
-    """
-    Start countdown timer and execute main() after 300 seconds
-    """
-    print("\n🕐 Timer started: 300 seconds countdown")
-    print("=" * 50)
-
-    time.sleep(5)
-    main()
-
-
 @app.route('/webhook', methods=['POST'])
 def webhook_endpoint():
     """
@@ -317,7 +306,7 @@ def webhook_endpoint():
         print("\n📨 Webhook received!")
 
         # Start countdown timer in background thread
-        timer_thread = threading.Thread(target=countdown_and_execute)
+        timer_thread = threading.Thread(target=main)
         timer_thread.daemon = True  # Thread will die when main program exits
         timer_thread.start()
 
