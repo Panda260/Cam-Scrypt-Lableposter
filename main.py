@@ -353,5 +353,7 @@ if __name__ == "__main__":
     print("=" * 60)
     print("\n⚡ Server ready! Waiting for webhook calls...")
 
+    port = int(os.environ.get("WEBHOOK_PORT", "5000"))
+
     # Start Flask app
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    app.run(host='0.0.0.0', port=port, debug=False)
