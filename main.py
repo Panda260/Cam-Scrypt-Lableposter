@@ -348,8 +348,8 @@ def webhook_endpoint():
 if __name__ == "__main__":
     print("🌐 Starting webhook server for cam badge processing...")
     print("=" * 60)
-    print("📍 Webhook endpoint: http://localhost:5000/webhook")
-    print("📍 Status endpoint: http://localhost:5000/status")
+    print(f"📍 Webhook endpoint: http://localhost:{port}/webhook")
+    print(f"📍 Status endpoint: http://localhost:{port}/status")
     print("=" * 60)
     print("\n⚡ Server ready! Waiting for webhook calls...")
 
