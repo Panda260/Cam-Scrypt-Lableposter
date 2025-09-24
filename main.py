@@ -273,7 +273,9 @@ def main():
         print("Please place the cam.png file in the script directory.")
         return
 
-    print()
+    for i in range(120, -1, -1):
+        print(f"Countdown {i}")
+        time.sleep(1)
 
     # Get library information and verify target library exists
     print("Checking available libraries...")
