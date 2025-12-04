@@ -18,6 +18,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,10 +45,12 @@ jobs:
           images: |
             ghcr.io/${{ github.repository }}
           tags: |
+            # Tag = Branchname (z.B. main, feature-xyz)
             type=ref,event=branch
-            type=semver,pattern={{version}}
+            # Zusätzlich ein SHA-Tag für eindeutige Builds
             type=sha
-            type=raw,value=latest
+            # latest NUR für main
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -60,7 +63,7 @@ jobs:
           build-args: |
             # Add build args if you later externalize any tokens
 
-  # Optional: scan (can be enabled later)
+  # Optional: scan (kann später aktiviert werden)
   # scan:
   #   needs: build-and-push
   #   runs-on: ubuntu-latest
