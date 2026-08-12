@@ -167,6 +167,10 @@ def add_badge(poster_data: bytes) -> Optional[bytes]:
             poster.paste(badge_resized, position)
 
         # Convert back to bytes
+        # JPEG unterstützt keinen Alpha-Kanal -> RGBA/LA/P auf RGB flatten,
+        # RGB-Poster bleiben unverändert. So funktioniert beides.
+        if poster.mode != 'RGB':
+            poster = poster.convert('RGB')
         output_buffer = io.BytesIO()
         poster.save(output_buffer, format='JPEG', quality=95)
         return output_buffer.getvalue()
