@@ -1,109 +1,114 @@
 # Cam-Scrypt-Lableposter
 
-## Overview
+A small Flask service that stamps a "cam" badge (`cam.png`) onto every poster in a Jellyfin library. A `POST` to `/webhook` starts a background job that downloads each poster, overlays the badge and uploads the result back to Jellyfin.
 
-Cam-Scrypt-Lableposter is a small Python service that overlays a "cam" badge (for example `cam.png`) onto poster images in a specified Jellyfin library. The service exposes a webhook endpoint (`/webhook`). Sending a POST to that endpoint triggers processing in the background and the endpoint returns HTTP 200 immediately.
+## How it works
 
-## What you'll find in this repo
+1. `POST /webhook` returns HTTP 200 immediately and starts the job in a background thread.
+2. The job checks that `cam.png` exists, then **waits 900 seconds (15 minutes)** — giving Jellyfin time to finish scanning and fetching metadata/artwork for newly added media.
+3. It verifies that `LIBRARY_ID` exists via `/Library/VirtualFolders`.
+4. It fetches all items in the library recursively and keeps those with posters: `Movie`, `Series` and `BoxSet`.
+5. For each item it downloads the `Primary` image, scales the badge to the full poster width, pastes it at the top edge, saves it as JPEG (quality 95, converting RGBA/LA/P posters to RGB) and uploads it back.
+6. Progress is logged every 10 items, followed by a final summary.
 
-- `main.py` — main application: calls the Jellyfin API to fetch items and poster images, overlays the badge, and uploads the modified posters back to Jellyfin.
-- `cam.png` — example badge file (not included in the image by default; mount it from the host or add it to the image).
+> **Note:** Uploaded posters replace the originals. Every run processes the whole library again, so posters that already have a badge get another one on top. Because the badge sits at the same position, this usually looks the same, but keep it in mind if you use a semi-transparent badge.
 
-## Environment variables
+## Configuration
 
-Configure the following environment variables in Docker or your runtime environment:
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `JELLYFIN_URL` | yes | – | Jellyfin base URL, e.g. `http://jellyfin.local:8096` |
+| `API_KEY` | yes | – | Jellyfin API key (Dashboard → API Keys) |
+| `LIBRARY_ID` | yes | – | ID of the library to process |
+| `WEBHOOK_PORT` | no | `5000` | Port the webhook server listens on |
 
-- `JELLYFIN_URL` — Jellyfin base URL (e.g. `http://10.0.4.50:8096`)
-- `API_KEY` — Jellyfin API key (X-Emby-Token)
-- `LIBRARY_ID` — target library ID in Jellyfin
-- `WEBHOOK_PORT` — port the Flask webhook listens on (default: `5000`)
+Authentication uses the `Authorization: MediaBrowser Token="<API_KEY>"` header, which Jellyfin 10.11+ requires (the old `X-Emby-Token` / `api_key` methods are disabled there by default).
 
-## Docker Compose example
+To find the library ID, start a run with any value: the job lists all libraries with their IDs in the log before aborting because the target library was not found.
 
-Add this service entry to your `docker-compose.yml` (adapt values as needed):
+## Docker
+
+Images are built by GitHub Actions and published to GHCR on every push:
+
+- `ghcr.io/panda260/cam-scrypt-lableposter:latest` — `main` branch
+- `ghcr.io/panda260/cam-scrypt-lableposter:<branch>` — any branch
+- `ghcr.io/panda260/cam-scrypt-lableposter:sha-<commit>` — a specific build
+
+`cam.png` is included in the image. Mount your own file over `/app/cam.png` to change the badge without rebuilding.
+
+### Docker Compose
 
 ```yaml
 services:
   cam-poster:
-    image: ghcr.io/panda260/cam-scrypt-lableposter:main
+    image: ghcr.io/panda260/cam-scrypt-lableposter:latest
     restart: unless-stopped
     environment:
-      - JELLYFIN_URL=http://0.0.0.0:8096
-      - API_KEY=aaabbbccc
-      - LIBRARY_ID=aaabbbccc
+      - JELLYFIN_URL=http://jellyfin.local:8096
+      - API_KEY=your_api_key
+      - LIBRARY_ID=your_library_id
       - WEBHOOK_PORT=5000
     ports:
       - "5000:5000"
     volumes:
-      - ./cam.png:/app/cam.png:ro
+      - ./cam.png:/app/cam.png:ro   # optional: custom badge
 ```
 
-Note: Mounting `cam.png` from the host is recommended so you can replace the badge without rebuilding the container.
-
-## Triggering the webhook
-
-Send a POST request to the webhook endpoint to start processing. Example using `curl`:
+### Build locally
 
 ```bash
-curl -X POST http://localhost:9092/webhook
+docker build -t cam-poster .
+docker run --rm -p 5000:5000 \
+  -e JELLYFIN_URL=http://jellyfin.local:8096 \
+  -e API_KEY=your_api_key \
+  -e LIBRARY_ID=your_library_id \
+  cam-poster
 ```
 
-Replace `localhost:9092` with the host/IP and port where your container is accessible. The endpoint returns HTTP 200 immediately and processing runs in the background.
+## Triggering
 
-## Local testing (without Docker)
+```bash
+curl -X POST http://localhost:5000/webhook
+```
 
-1. Create a Python virtual environment and install dependencies:
+Response:
+
+```json
+{"status": "success", "message": "Webhook received, timer started (300 seconds)", "timestamp": 1760000000.0}
+```
+
+The message text is outdated; the actual delay is 900 seconds. Each request starts its own job, so several triggers in quick succession run in parallel.
+
+The endpoint fits well with the Jellyfin Webhook plugin (e.g. on "Item Added"), but any HTTP client works — the request body is ignored.
+
+## Running without Docker
+
+Requires Python 3 (the Docker image uses 3.11).
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-```
 
-Windows (PowerShell):
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-```
-
-2. Set environment variables and run `main.py`:
-
-Linux/macOS example:
-
-```bash
-export JELLYFIN_URL="http://10.0.4.50:8096"
+export JELLYFIN_URL="http://jellyfin.local:8096"
 export API_KEY="your_api_key"
 export LIBRARY_ID="your_library_id"
-export WEBHOOK_PORT=9092
+export WEBHOOK_PORT=5000
 python main.py
 ```
 
-PowerShell example:
+Run it from the repository directory: `cam.png` is looked up relative to the current working directory.
 
-```powershell
-$env:JELLYFIN_URL = 'http://10.0.4.50:8096'
-$env:API_KEY = 'your_api_key'
-$env:LIBRARY_ID = 'your_library_id'
-$env:WEBHOOK_PORT = '9092'
-python main.py
-```
+## Troubleshooting
 
-## Logs & troubleshooting
-
-- Check container logs: `docker-compose logs -f cam-poster` or `docker logs -f <container>`.
-- Common issues:
-  - `cam.png` missing in the container — mount it or add it to the image.
-  - Incorrect `LIBRARY_ID` or `API_KEY` — Jellyfin API errors will appear in logs.
-  - Network/firewall issues preventing the container from reaching Jellyfin.
-- If the webhook returns 200 but posters are not updated, inspect the logs for `download_item_image`, `add_badge`, and `upload_image_to_jellyfin` messages.
+- Logs: `docker compose logs -f cam-poster` or `docker logs -f <container>`.
+- Nothing happens after the trigger: the job is still in its 15-minute countdown (`Countdown N` lines in the log).
+- `Badge file missing: cam.png`: the file is not in the working directory (`/app` in the container).
+- `Target library ... not found`: wrong `LIBRARY_ID`, or the API key lacks access. Compare with the library list printed just before.
+- HTTP 401 errors: invalid `API_KEY`.
+- `Error downloading image`: the item has no poster yet.
+- The startup log mentions a `/status` endpoint; it is not implemented.
 
 ## Production notes
 
-- The app currently uses Flask's development server. For production deployments, use a WSGI server like `gunicorn` and a reverse proxy (e.g. nginx).
-- Consider protecting the webhook with a shared secret header such as `X-Auth-Token` and an environment variable `WEBHOOK_TOKEN`.
-
-## License & support
-
-This repository contains helper scripts — adapt them to your environment. For support or questions open an issue in the repository.
+- The service uses Flask's development server and has no authentication on `/webhook`. Only expose it on a trusted network, or put it behind a reverse proxy that restricts access.
