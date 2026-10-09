@@ -16,6 +16,9 @@ JELLYFIN_URL = os.environ.get("JELLYFIN_URL", "")
 API_KEY = os.environ.get("API_KEY", "")
 LIBRARY_ID = os.environ.get("LIBRARY_ID", "")
 
+# Jellyfin 10.11+ akzeptiert X-Emby-Token / api_key standardmäßig nicht mehr
+AUTH_HEADER = {'Authorization': f'MediaBrowser Token="{API_KEY}"'}
+
 
 print(f"[startup] JELLYFIN_URL: {JELLYFIN_URL}")
 print(f"[startup] LIBRARY_ID: {LIBRARY_ID}")
@@ -25,7 +28,7 @@ def get_items_from_library() -> Optional[List[Dict]]:
     """
     Fetch ALL items from specific Jellyfin library (corrected version)
     """
-    headers = {'X-Emby-Token': API_KEY}
+    headers = dict(AUTH_HEADER)
     url = f'{JELLYFIN_URL}/Items'
 
     # Corrected parameters based on getIDs.py
@@ -56,7 +59,7 @@ def get_library_info() -> bool:
     """
     Get information about all libraries to verify our target library exists
     """
-    headers = {'X-Emby-Token': API_KEY}
+    headers = dict(AUTH_HEADER)
     url = f'{JELLYFIN_URL}/Library/VirtualFolders'  # Correct URL for libraries
 
     try:
@@ -97,7 +100,7 @@ def download_item_image(item_id: str, image_type: str = "Primary") -> Optional[b
     """
     Download item image from Jellyfin
     """
-    headers = {'X-Emby-Token': API_KEY}
+    headers = dict(AUTH_HEADER)
     url = f'{JELLYFIN_URL}/Items/{item_id}/Images/{image_type}'
 
     try:
@@ -114,7 +117,7 @@ def upload_image_to_jellyfin(item_id: str, image_data: bytes, image_type: str = 
     Upload image back to Jellyfin (Base64 encoded)
     """
     headers = {
-        'X-Emby-Token': API_KEY,
+        **AUTH_HEADER,
         'Content-Type': 'image/jpeg',
         'Connection': 'keep-alive'
     }
